@@ -59,6 +59,7 @@ let handleClient: TcpClient -> unit =
                     loop ()
         loop ()
         client.Close ()
+        
 let startServer: unit -> Async<unit> =
     fun () -> 
         let listener = new TcpListener (IPAddress.Any, 25)

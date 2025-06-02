@@ -59,21 +59,35 @@ let handleClient: TcpClient -> unit =
                     loop ()
         loop ()
         client.Close ()
-let startServer: unit -> unit =
+let startServer: unit -> Async<unit> =
     fun () -> 
         let listener = new TcpListener (IPAddress.Any, 25)
         listener.Start ()
         printfn "SMTP server listening on port 25..."
 
-        while true do
-            let client = listener.AcceptTcpClient ()
-            async { handleClient client } |> Async.Start
+        let rec acceptLoop: unit -> Async<unit> =
+            fun () -> async {
+                let! client = listener.AcceptTcpClientAsync() |> Async.AwaitTask
+                printfn "Accepted connection from %A" client.Client.RemoteEndPoint
+
+                Async.Start(async {
+                    try do! async { handleClient client }
+                    with ex -> printfn "Error in client handler: %s" ex.Message
+                })
+
+                return! acceptLoop ()
+            }
+
+        acceptLoop ()
 
 [<EntryPoint>]
 let main: string array -> int = 
-    fun args ->
-        startServer ()
-        0
+    fun _ ->
+        try startServer () |> Async.RunSynchronously
+            0
+        with ex -> 
+            printfn "Fatal error: %s" ex.Message
+            1
 
 
 
